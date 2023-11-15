@@ -16,86 +16,91 @@ from sklearn.pipeline import Pipeline
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 from lightgbm import LGBMClassifier
 
+# 훈련 / 테스트 분할
+X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=42, test_size = 0.2, stratify=y)
 
-def modeling(X, y, model, feature_tran='pca'):
+ss = StandardScaler()
+X_train_ss = ss.fit_transform(X_train)
+X_test_ss = ss.transform(X_test)
+
+pca = PCA()
+X_train_pca = pca.fit_transform(X_train_ss, y_train)
+X_test_pca = pca.transform(X_test_ss)
+
+lda = LinearDiscriminantAnalysis()
+X_train_lda = lda.fit_transform(X_train_ss, y_train)
+X_test_lda = lda.transform(X_test, y_test)
+
+
+def modeling(X_train, y, model, feature_tran='pca'):
     
     # 검증용 세트 분할
-    X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=42, test_size = 0.3, stratify=y)
+    #X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=42, test_size = 0.2, stratify=y)
+
+    # 평가 점수를 담을 데이터프레임 생성
     scores = pd.DataFrame()
-    
-    # 특성 축소 방법 선택
-    if feature_tran == 'pca':
-        p_model = Pipeline([('ss', StandardScaler()),
-                            ('pca', PCA()),
-                            ('mo', globals()[model]())])
-        scores['type'] = ['pca']
-    elif feature_tran == 'lda':
-        p_model = Pipeline([('ss', StandardScaler()),
-                            ('lda', LinearDiscriminantAnalysis()),
-                            ('mo', globals()[model]())])
-        scores['type'] = ['lda']
-    else:
-        p_model = Pipeline([('ss', StandardScaler()),
-                            ('mo', globals()[model]())])
-        scores['type'] = ['none']
+
+    # 모델 생성
+    g_model = globals()[model]()
+   
     
     # 모델 감지
     if model == 'KNeighborsClassifier':
 
-        param_grid = {'mo__n_neighbors':[3,5,7,9],
-                      'mo__algorithm':['auto', 'ball_tree','kd_tree','brute'],
-                      'mo__metric':['euclidean','manhattan','minkowski']}        
+        param_grid = {'n_neighbors':[3,5,7,9],
+                      'algorithm':['auto', 'ball_tree','kd_tree','brute'],
+                      'metric':['euclidean','manhattan','minkowski']}        
         scores['model'] = ['Knn']
         
     elif model == 'SVC':
 
-        param_grid = {'mo__C': [0.01, 0.1, 1.0, 10.0],
-                       'mo__kernel': ['linear', 'rbf'],
-                       'mo__gamma': ['scale', 'auto']}        
+        param_grid = {'C': [0.01, 0.1, 1.0, 10.0],
+                       'kernel': ['linear', 'rbf'],
+                       'gamma': ['scale', 'auto']}        
         scores['model'] = ['SVC']
             
     elif model == 'LogisticRegression':
 
-        param_grid = {'mo__penalty':['l1','l2','elasticnet',None],
-                      'mo__C':[0.001, 0.01, 0.1, 1.0, 10.0, 100.0],
-                      'mo__solver':['lbfgs','liblinear']}        
+        param_grid = {'penalty':['l1','l2','elasticnet',None],
+                      'C':[0.001, 0.01, 0.1, 1.0, 10.0, 100.0],
+                      'solver':['lbfgs','liblinear']}        
         scores['model'] = ['Logistic classifier']
         
     elif model == 'RandomForestClassifier':
 
-        param_grid = {'mo__n_estimators': [50, 100, 200],
-                      'mo__max_depth': [None, 10, 20],
-                      'mo__max_features': ['auto', 'sqrt'],
-                      'mo__bootstrap': [True, False]}        
+        param_grid = {'n_estimators': [50, 100, 200],
+                      'max_depth': [None, 10, 20],
+                      'max_features': ['auto', 'sqrt'],
+                      'bootstrap': [True, False]}        
         scores['model'] = ['Random forest']
         
     elif model == 'GradientBoostingClassifier':
         
-        param_grid = {'mo__loss': ['log_loss', 'exponential'],
-                     'mo__learning_rate': [0.01, 0.1, 1.0, 10],
-                     'mo__criterion': ['friedman_mse', 'squared_error']}
+        param_grid = {'loss': ['log_loss', 'exponential'],
+                     'learning_rate': [0.01, 0.1, 1.0, 10],
+                     'criterion': ['friedman_mse', 'squared_error']}
         
         scores['model'] = ['Gradient Boost Classifier']
         
     elif model == 'HistGradientBoostingClassifier':
 
-        param_grid = {'mo__max_iter': [100, 200, 300],
-                      'mo__max_depth': [3, 5],
-                      'mo__learning_rate': [0.01, 0.1, 1.0, 10.0]}        
+        param_grid = {'max_iter': [100, 200, 300],
+                      'max_depth': [3, 5],
+                      'learning_rate': [0.01, 0.1, 1.0, 10.0]}        
         scores['model'] = ['Hist Random forest']
         
     elif model == 'XGBClassifier':
 
-        param_grid = {'mo__n_estimators': [50, 100, 200],
-                      'mo__max_depth': [3, 4, 5],
-                      'mo__learning_rate': [0.01, 0.1, 10.0]}        
+        param_grid = {'n_estimators': [50, 100, 200],
+                      'max_depth': [3, 4, 5],
+                      'learning_rate': [0.01, 0.1, 10.0]}        
         scores['model'] = ['XG Boost']
         
     elif model == 'LGBMClassifier':
         
-        param_grid = {'mo__n_estimators':[100, 200, 500],
-                     'mo__learning_rate': [0.01, 0.1, 1.0, 10],
-                     'mo__max_depth':[1,2,3]}
+        param_grid = {'n_estimators':[100, 200, 500],
+                     'learning_rate': [0.01, 0.1, 1.0, 10],
+                     'max_depth':[1,2,3]}
         scores['model'] = ['Light GBM']
         
     else:
@@ -103,7 +108,7 @@ def modeling(X, y, model, feature_tran='pca'):
         return  
         
     # 그리드 서치 모델링
-    gs = GridSearchCV(estimator=p_model, param_grid=param_grid,
+    gs = GridSearchCV(estimator=g_model, param_grid=param_grid,
                       scoring='accuracy', cv=5, refit=True, n_jobs=-1)
     
     gs = gs.fit(X_train, y_train)
